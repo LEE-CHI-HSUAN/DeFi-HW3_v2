@@ -9,6 +9,7 @@ import quantstats as qs
 import gurobipy as gp
 import warnings
 import argparse
+import pandas_ta as ta
 
 """
 Project Setup
@@ -56,7 +57,7 @@ class MyPortfolio:
     """
 
     def __init__(self, price, exclude, lookback=50, gamma=0):
-        self.price = price
+        self.price = price.ffill().bfill()
         self.returns = price.pct_change().fillna(0)
         self.exclude = exclude
         self.lookback = lookback
@@ -74,7 +75,26 @@ class MyPortfolio:
         """
         TODO: Complete Task 4 Below
         """
+        # calculate risk parity weight
+        volatilities = self.returns[assets].rolling(window=self.lookback).std()
+        inverse_values = np.where(volatilities != 0.0, 1 / volatilities, 0.0)
+        inv_vol_weights = pd.DataFrame(inverse_values, columns=volatilities.columns, index=volatilities.index)
+        inv_vol_sum = inv_vol_weights.sum(axis=1)
+        self.portfolio_weights[assets] = inv_vol_weights.div(inv_vol_sum, axis=0)
+        self.portfolio_weights = self.portfolio_weights.shift(1)
+        self.portfolio_weights.iloc[50] = 0
 
+        # calculate signal
+        ema_fast = ta.sma(self.price["SPY"], length=10)
+        ema_slow = ta.sma(self.price["SPY"], length=50)
+        signal = (ema_fast >= ema_slow).astype(int)
+        # use the signal
+        self.portfolio_weights[assets] = self.portfolio_weights[assets].mul(signal, axis=0)
+
+        # fill the first `self.lookback + 1` days with equal weight
+        weight = 1 / len(assets)
+        self.portfolio_weights.iloc[0:(self.lookback + 1), self.price.columns != self.exclude] = weight
+        self.portfolio_weights[self.exclude] = 0
         """
         TODO: Complete Task 4 Above
         """
