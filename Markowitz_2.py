@@ -85,9 +85,9 @@ class MyPortfolio:
         self.portfolio_weights.iloc[50] = 0
 
         # calculate signal
-        ema_fast = ta.sma(self.price["SPY"], length=10)
-        ema_slow = ta.sma(self.price["SPY"], length=50)
-        signal = (ema_fast >= ema_slow).astype(int)
+        sma_fast = ta.sma(self.price["SPY"], length=5)
+        sma_slow = ta.sma(self.price["SPY"], length=15)
+        signal = (sma_fast >= sma_slow).astype(int).shift(1)
         # use the signal
         self.portfolio_weights[assets] = self.portfolio_weights[assets].mul(signal, axis=0)
 
